@@ -1,5 +1,7 @@
 const http = require('http')
 const querystring = require('querystring');
+const { spawn } = require('child_process');
+const exec = require('child_process').exec;
 
 const randomString = (length) => {
     var result = '';
@@ -17,7 +19,7 @@ const randomString = (length) => {
 }
 
 async function post(url, data) {
-    const postData  = querystring.stringify(data);
+    const postData = querystring.stringify(data);
 
     const options1 = {
         method: 'POST',
@@ -29,7 +31,7 @@ async function post(url, data) {
 
     return new Promise((resolve, reject) => {
         const req = http.request(url, options1, (res) => {
-           if (res.statusCode !== 200) {
+            if (res.statusCode !== 200) {
                 console.error(`Did not get an OK from the server. Code: ${res.statusCode}`);
                 res.resume();
                 return "";
@@ -37,7 +39,7 @@ async function post(url, data) {
 
             let body = "";
             res.on('data', (chunk) => {
-                 body += chunk;
+                body += chunk;
             })
             res.on('close', () => {
                 // console.log('Retrieved all data');
@@ -62,36 +64,75 @@ async function post(url, data) {
             reject(new Error('Request time out'))
         })
 
-        req.write(postData )
+        req.write(postData)
         req.end()
     })
 }
 
 
 const main = async () => {
-    try{
+    //get arguments from command line
+    const mainArgs = process.argv.slice(2);
+    console.log('mainArgs: ', mainArgs);
+    if(mainArgs && mainArgs.length<2) 
+    {
+        console.log("Invlid arguments.");
+        return;
+    }
+    const IP = mainArgs[0];
+    const PORT = mainArgs[1];
+    const UNIQUE_ID = mainArgs[2] || "";
+    if (process.env.process_restarting) {
+        delete process.env.process_restarting;
+        // Give old process one second to shut down before continuing ...
+        setTimeout(main, 1000);
+        return;
+      }
+    
+
+    try {
+        var serverPid = "";
+       
         //do ask_key post first
-        const uniqueId = randomString(64);
+        let uniqueId = UNIQUE_ID ==="" ? randomString(64): UNIQUE_ID;
         console.log("uniqueId = ", uniqueId);
-        const returnedKey = await post('http://127.0.0.2:9999/', {
+        const returnedKey = await post(`http://${IP}:${PORT}/`, {
             ask_key: uniqueId
         })
-        console.log("returnedKey = ", returnedKey);
+        // console.log("returnedKey = ", returnedKey);
         //do login post
-        const returnedUniqueId = await post('http://127.0.0.2:9999/', {
+        const returnedUniqueId = await post(`http://${IP}:${PORT}/`, {
             login: returnedKey
         })
-        console.log("returnedUniqueId = ", returnedUniqueId);
+        console.log("uniqueId and returned Id = " + uniqueId + ":" + returnedUniqueId);
+        exec(`sudo lsof -i -P -n | grep ${IP}:${PORT}`,
+        function (error, stdout, stderr) {
+            // console.log('stdout: ' + stdout);
+            serverPid = stdout.split('    ')[1]
+            // console.log('PID: ' + serverPid);
 
-        //test for wrong key
-        const returnedOfWrongkey = await post('http://127.0.0.2:9999/', {
-            login: randomString(64)
-        })
-        console.log("returnedOfWrongkey = ", returnedOfWrongkey);
-    }catch(error)
-    {
-        
+            // stdout.split('\t')
+            if (error !== null) {
+                console.log('exec error: ' + error);
+            }
+            
+            if (uniqueId.toString() !== returnedUniqueId.toString()){
+                cmd ='sudo kill -9 '+ serverPid;
+                console.log("cmd: " + cmd);
+                exec('sudo kill -9 '+ serverPid);
+            }else{
+               // Restart process ...
+               
+                console.log("UNIQUE_ID = ", returnedUniqueId);
+                spawn(process.argv[0], [process.argv[1], process.argv[2], process.argv[3], returnedUniqueId], {
+                    env: { process_restarting: 1 },
+                    stdio: 'ignore',
+                }).unref();
+            }
+        });
+    } catch (error) {
+
     }
 }
 
-main();
+main("127.0.0.2", 9999);

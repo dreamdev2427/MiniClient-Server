@@ -66,7 +66,7 @@ const postHandler = (request, response) => {
             });
             parent.on('message', (result) => {
                 // console.log(result);
-                response.write(JSON.stringify(result.result));
+                response.write(result.result);
                 response.end();
             })
         }        
