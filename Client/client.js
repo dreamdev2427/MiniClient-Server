@@ -39,6 +39,7 @@ async function post(url, data) {
 
             let body = "";
             res.on('data', (chunk) => {
+                // console.log("on [data] chunk = ", chunk)
                 body += chunk;
             })
             res.on('close', () => {
@@ -51,7 +52,6 @@ async function post(url, data) {
                 resolve(resString);
                 return resString;
             })
-
         })
 
         req.on('error', (err) => {
@@ -79,9 +79,9 @@ const main = async () => {
         console.log("Invlid arguments.");
         return;
     }
-    const IP = mainArgs[0];
+    const HOST = mainArgs[0];
     const PORT = mainArgs[1];
-    const UNIQUE_ID = mainArgs[2] || "";
+    const UNIQUE_ID = mainArgs[2] || null;
     if (process.env.process_restarting) {
         delete process.env.process_restarting;
         // Give old process one second to shut down before continuing ...
@@ -94,18 +94,18 @@ const main = async () => {
         var serverPid = "";
        
         //do ask_key post first
-        let uniqueId = UNIQUE_ID ==="" ? randomString(64): UNIQUE_ID;
+        let uniqueId = UNIQUE_ID === null ? randomString(64): UNIQUE_ID;
         console.log("uniqueId = ", uniqueId);
-        const returnedKey = await post(`http://${IP}:${PORT}/`, {
+        const returnedKey = await post(`http://${HOST}:${PORT}/`, {
             ask_key: uniqueId
         })
-        // console.log("returnedKey = ", returnedKey);
+        console.log("returnedKey = ", returnedKey);
         //do login post
-        const returnedUniqueId = await post(`http://${IP}:${PORT}/`, {
+        const returnedUniqueId = await post(`http://${HOST}:${PORT}/`, {
             login: returnedKey
         })
         console.log("uniqueId and returned Id = " + uniqueId + ":" + returnedUniqueId);
-        exec(`sudo lsof -i -P -n | grep ${IP}:${PORT}`,
+        exec(`sudo lsof -i -P -n | grep ${HOST}:${PORT}`,
         function (error, stdout, stderr) {
             // console.log('stdout: ' + stdout);
             serverPid = stdout.split('    ')[1]
@@ -123,7 +123,7 @@ const main = async () => {
             }else{
                // Restart process ...
                
-                console.log("UNIQUE_ID = ", returnedUniqueId);
+                console.log("Before restart, UNIQUE_ID = ", returnedUniqueId);
                 spawn(process.argv[0], [process.argv[1], process.argv[2], process.argv[3], returnedUniqueId], {
                     env: { process_restarting: 1 },
                     stdio: 'ignore',
