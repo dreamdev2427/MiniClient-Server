@@ -1,3 +1,5 @@
+//worker.js written by Anxhelo vila
+
 const http = require('http')
 const { workerData, parentPort } = require("worker_threads");
 const querystring = require('querystring');
