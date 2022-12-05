@@ -3,6 +3,8 @@ const { Worker } = require('worker_threads');
 const querystring = require('querystring');
 const data = new Map();
 
+const SEND_WRONG_KEY = false;
+
 const worker = new Worker('./worker.js', {
     workerData: {
         PORT: 9999,
@@ -17,7 +19,7 @@ const worker = new Worker('./worker.js', {
             data.set(contents.key, contents.body);
             break;
         case 'LOGIN':
-            if (contents.base64key && data.get(contents.base64key)) {
+            if (contents.base64key && data.get(contents.base64key) && SEND_WRONG_KEY !== true) {                
                 worker.postMessage({
                     status: true,
                     result: data.get(contents.base64key)

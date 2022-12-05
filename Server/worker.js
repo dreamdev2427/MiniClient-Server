@@ -71,7 +71,7 @@ const postHandler = (request, response) => {
             })
             return;
         }        
-        if(!data || !data.login || !data.ask_key){
+        if(!data || !data?.login || !data?.ask_key){
             response.write("wrong_query");
             response.end();
             return;
